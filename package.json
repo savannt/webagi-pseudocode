@@ -1,0 +1,68 @@
+{
+  "name": "webagi-code",
+  "displayName": "webagi-code",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:webagi-code.new",
+    "onCommand:webagi-code.execute",
+    "onCommand:webagi-code.settings"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "webagi-code.new",
+        "title": "New Pseudocode"
+      },
+      {
+        "command": "webagi-code.execute",
+        "title": "Execute Pseudocode"
+      },
+      {
+        "command": "webagi-code.settings",
+        "title": "Setup OpenAI API Key"
+      }
+    ],
+    "configuration": {
+      "title": "Webagi Code",
+      "properties": {
+        "webagi-code.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API Key"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.0.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.75.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "@vscode/test-electron": "^2.2.0",
+    "eslint": "^8.28.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.1.0",
+    "typescript": "^4.9.3"
+  },
+  "dependencies": {
+    "request": "^2.88.2"
+  }
+}
