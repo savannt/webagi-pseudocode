@@ -12,81 +12,38 @@ export function activate(context: vscode.ExtensionContext) {
 
 	console.log('Congratulations, your extension "webagi-code" is now active!');
 
-	let newDisposable = vscode.commands.registerCommand('webagi-code.new', () => {
+	let TIMEOUT = 1500;
 
-		let editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return;
-        }
-
-		// check if there is an active js document open
-		if (editor.document.languageId !== "javascript") {
-			vscode.window.showErrorMessage("Please open a javascript file");
-			return;
-		}
-
-		const doc = editor.document;
-
-		let path = doc.fileName;
-		// change path to .pseudo
-		path = path.replace(".js", ".pseudo");
-		
-		if(!fs.existsSync(path)) {
-			// create file
-			fs.writeFileSync(path, "// pseudocode for " + doc.fileName.split("\\").pop());
-		}
-
-		// open path file
-		vscode.workspace.openTextDocument(path).then(doc => {
-			vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
-		});
-
-		// // Open a new text document to the side of the current one, with the text "// pseudo for file 
-		// vscode.workspace.openTextDocument({
-		// 	language: "text",
-		// 	content: "// pseudocode goes here",
-			
-		// }).then(doc => {
-
-			
-
-		// 	vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
-		// });
-	});
-	context.subscriptions.push(newDisposable);
+	let currentPath: string | undefined;
+	let interval: NodeJS.Timeout | undefined;
 
 
-	let executeDisposable = vscode.commands.registerCommand('webagi-code.execute', () => {
-		
-		let editor = vscode.window.activeTextEditor;
-		if (!editor) {
-			return;
-		}
+	// on document change
+	vscode.workspace.onDidChangeTextDocument((event) => {
+		if(!currentPath) return;
+		if(event.document.fileName !== currentPath) return;
 
 		const apiKey = vscode.workspace.getConfiguration().get("webagi-code.apiKey");
 		if (!apiKey) {
 			vscode.window.showErrorMessage("Please enter your OpenAI API key in the settings");
 			return;
 		}
-		console.log("API Key: " + apiKey);
 
+		if(interval) clearTimeout(interval);
+		interval = setTimeout(() => {
+			interval = undefined;
+			execute(currentPath || "", apiKey.toString());
+		}, TIMEOUT);
 
-		// get all open documents
-		let docs = vscode.workspace.textDocuments;
-		docs = docs.filter(doc => {
-			return !doc.isClosed && doc.fileName.includes(".pseudo");
-		});
+		// execute(currentPath, apiKey.toString());
+	});
 
-		if(docs.length === 0) {
-			vscode.window.showErrorMessage("Please open a pseudocode file");
-			return;
-		}
+	const execute = (path: string, apiKey: string) => {
+		currentPath = path;
 
-		const doc = docs[0];
-		const path = doc.fileName;
 		const sourcePath = path.replace(".pseudo", ".js");
 
-		const psduoCode = doc.getText();		
+		const psduoCode = fs.readFileSync(path, 'utf8');	
 
 		console.log("Processing " + path.split("\\").pop());
 
@@ -140,32 +97,106 @@ ${psduoCode}
 
 #### Output
 \`\`\`javascript\n`;
-
 		request({
-			url: 'https://api.openai.com/v1/engines/davinci/completions',
+			url: 'https://api.openai.com/v1/completions',
 			method: 'POST',
 			headers: {
 				'Authorization': 'Bearer ' + apiKey,
 				'Content-Type': 'application/json'
 			},
 			json: {
+				model: "code-davinci-002",
 				prompt: prompt,
 				max_tokens: 200,
 				n: 1,
 				stop: '\n```',
-				temperature: 0.5,
+				temperature: 0.1,
 				top_p: 1,
-				frequency_penalty: 0,
-				presence_penalty: 0,
+				frequency_penalty: 0.10,
+				presence_penalty: 0.10,
+				stream: false,
+				logprobs: null
 			}
 		}, (error: any, response: any, body: any) => {
+			if(error) console.error(error);
+			if(!response || response.statusCode !== 200) {
+				console.log(response.statusCode);
+				console.log(body);
+			}
 			console.log(body.choices[0].text);
-			// leftDoc.setText(body.choices[0].text);
+			// leftDoc.setText(body.choices[0].texwt);
 
 			// set the text of the letDoc
 			fs.writeFileSync(sourcePath, body.choices[0].text);
 		});
+	}
+
+	let newDisposable = vscode.commands.registerCommand('webagi-code.new', () => {
+
+		let editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return;
+        }
+
+		// check if there is an active js document open
+		if (editor.document.languageId !== "javascript") {
+			vscode.window.showErrorMessage("Please open a javascript file");
+			return;
+		}
+
+		const doc = editor.document;
+
+		let path = doc.fileName;
+		// change path to .pseudo
+		path = path.replace(".js", ".pseudo");
+		
+		if(!fs.existsSync(path)) {
+			// create file
+			fs.writeFileSync(path, "// pseudocode for " + doc.fileName.split("\\").pop());
+		}
+
+		// open path file
+		vscode.workspace.openTextDocument(path).then(doc => {
+			vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
+		});
+
 	});
+	context.subscriptions.push(newDisposable);
+
+
+	let executeDisposable = vscode.commands.registerCommand('webagi-code.execute', () => {
+		
+		let editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return;
+		}
+
+		const apiKey = vscode.workspace.getConfiguration().get("webagi-code.apiKey");
+		if (!apiKey) {
+			vscode.window.showErrorMessage("Please enter your OpenAI API key in the settings");
+			return;
+		}
+		console.log("API Key: " + apiKey);
+
+
+		// get all open documents
+		let docs = vscode.workspace.textDocuments;
+		docs = docs.filter(doc => {
+			return !doc.isClosed && doc.fileName.includes(".pseudo");
+		});
+
+		if(docs.length === 0) {
+			vscode.window.showErrorMessage("Please open a pseudocode file");
+			return;
+		}
+
+		const doc = docs[0];
+
+		const path = doc.fileName;
+
+		execute(path, apiKey.toString());
+	});
+		
 	context.subscriptions.push(executeDisposable);
 
 
